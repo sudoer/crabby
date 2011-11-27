@@ -2,10 +2,43 @@
 #ifndef uint8
 #define uint8  unsigned char
 #endif
+#ifndef uint16
+#define uint16  unsigned short
+#endif
 
 #define LED   13
-#define SCK   8
-#define SDA   9
+//#define SCK   8
+//#define SDA   9
+
+// CLOCK & DATA PINS
+#define SCK_BIT  5
+#define SDA_BIT  6
+#define SCK_PORT PORTD
+#define SDA_PORT PORTD
+#define SDA_PIN  PIND
+#define SCK_DDR  DDRD
+#define SDA_DDR  DDRD
+
+// BITWISE OPERATIONS
+#define BITSET(name,bitn)  ((name)|=(0x01<<(bitn)))
+#define BITCLR(name,bitn)  ((name)&=~(0x01<<(bitn)))
+#define BITTST(name,bitn)  ((name) & (0x01<<(bitn)))
+#define BITNOT(name,bitn)  ((name)^=(0x01<<(bitn)))
+#define MASKSET(name,mask)  ((name)|=(mask))
+#define MASKCLR(name,mask)  ((name)&=~(mask))
+#define MASKTST(name,mask)  ((name) & (mask))
+#define MASKNOT(name,mask)  ((name)^=(mask))
+
+// PRIMITIVE PIN OPERATIONS
+#define I2C_SCK_OUTPUT     BITSET(SCK_DDR,SCK_BIT)
+#define I2C_SCK_WRITE(hl)  ((hl)?BITSET(SCK_PORT,SCK_BIT):BITCLR(SCK_PORT,SCK_BIT))
+#define I2C_SDA_INPUT      BITCLR(SDA_DDR,SDA_BIT) ; BITSET(SDA_PORT,SDA_BIT);
+#define I2C_SDA_READ       ((BITTST(SDA_PIN,SDA_BIT))?1:0)
+#define I2C_SDA_OUTPUT     BITSET(SDA_DDR,SDA_BIT)
+#define I2C_SDA_WRITE(hl)  ((hl)?BITSET(SDA_PORT,SDA_BIT):BITCLR(SDA_PORT,SDA_BIT))
+#define I2C_DELAY          delayMicroseconds(100);
+#define I2C_PAUSE          delayMicroseconds(1000);
+
                            //adr cmnd r/w
 #define STATUS_REG_W 0x06  //000 0011 0
 #define STATUS_REG_R 0x07  //000 0011 1
@@ -13,12 +46,11 @@
 #define MEASURE_HUMI 0x05  //000 0010 1
 #define RESET        0x1e  //000 1111 0
 
-
 ////////////////////////////////////////////////////////////////////////////////
 
 void setup();
 void loop();
-int data_ready();
+int wait_for_sensor_ready();
 void i2c_init(void);
 uint8 i2c_send(uint8 * b, uint8 count);
 void i2c_start(void);
@@ -35,25 +67,27 @@ void setup() {
    Serial.println(__DATE__);
    Serial.println(__TIME__);
    i2c_init();
-   i2c_reset();
+   //i2c_reset();
    pinMode(LED,OUTPUT);
+   delay(10); // milliseconds
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void loop() {
-   digitalWrite(LED, HIGH);
    Serial.println("loop");
-   i2c_reset();
+   digitalWrite(LED, HIGH);
+   I2C_SCK_WRITE(1); // why is this low ??
+   delay(2); // milliseconds
+   //i2c_reset();
    transmission_start();
-   if(i2c_send_byte(MEASURE_TEMP)) {
-      Serial.println("send-error");
-   }
-   // wait until sensor has finished the measurement
-   if (data_ready()) {
+   uint8 ack=i2c_send_byte(MEASURE_TEMP);
+   // sensor chip will set ack=0
+   if (wait_for_sensor_ready()) { // about 80 millisecs
       uint8 d1=i2c_recv_byte(1);
       uint8 d2=i2c_recv_byte(1);
       uint8 d3=i2c_recv_byte(0);
+      i2c_stop();
       Serial.print("d1=");
       Serial.print(d1,HEX);
       Serial.print(" d2=");
@@ -66,40 +100,25 @@ void loop() {
       Serial.print(".");
       Serial.print(temp_int%100,DEC);
       Serial.println("*C");
-   } else {
-      i2c_reset();
    }
    digitalWrite(LED, LOW);
-   delay(2000);
+   delay(2000); // milliseconds
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void transmission_start() {
-   digitalWrite(SDA, HIGH);
-   pinMode(SDA,OUTPUT);
-   digitalWrite(SCK, HIGH);
-   digitalWrite(SDA, LOW);
-   digitalWrite(SCK, LOW);
-   digitalWrite(SCK, HIGH);
-   digitalWrite(SDA, HIGH);
-   digitalWrite(SCK, LOW);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-int data_ready() {
-//   delay(100);
-//   return 1;
-
-   pinMode(SDA,INPUT);
-   digitalWrite(SDA,HIGH); // turn on pull-up resistor
-   for (int i=0;i<200;i++) {
+int wait_for_sensor_ready() {
+   I2C_SDA_INPUT; // we'll be reading SDA
+   for (uint16 i=0;i<1000;i++) {
+      digitalWrite(LED,LOW);
       delay(1);
-      uint8 d=digitalRead(SDA);
-      if (d==0) { // OK
-         Serial.print(i,DEC);
-         Serial.println("msec");
+      digitalWrite(LED,HIGH);
+      uint8 d=I2C_SDA_READ;
+      if (d == 0x00) {
+         // SENSOR IS READY!
+         digitalWrite(LED, LOW);
+         delay(1);
+         digitalWrite(LED,HIGH);
          return 1;
       }
    }
@@ -109,83 +128,74 @@ int data_ready() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//   HIGH-LEVEL I2C
-////////////////////////////////////////////////////////////////////////////////
-
-void i2c_init(void) {
-   // set up lines
-   pinMode(SCK,OUTPUT);
-   digitalWrite(SDA, LOW);
-   pinMode(SDA,OUTPUT);
-   // send initial STOP condition
-   digitalWrite(SDA, LOW);
-   digitalWrite(SCK, HIGH);
-   digitalWrite(SDA, HIGH);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-/*
-uint8 i2c_send(uint8 * b, uint8 count) {
-   uint8 errors=0;
-   uint8 c=0;
-   i2c_start();
-   while(c<count) {
-      errors+=i2c_send_byte(b[c++]);
-   }
-   i2c_stop();
-   return errors;
-}
-*/
-
-////////////////////////////////////////////////////////////////////////////////
 //   LOW-LEVEL I2C
 ////////////////////////////////////////////////////////////////////////////////
 
+void i2c_init(void) {
+   // SCK is always an output
+   I2C_SCK_OUTPUT;
+   I2C_SDA_WRITE(1);
+   // SDA is an output for now
+   I2C_SDA_OUTPUT;
+   I2C_SDA_WRITE(1);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void i2c_start(void) {
-   digitalWrite(SDA, LOW);
-   pinMode(SDA,OUTPUT);
-   digitalWrite(SDA, LOW);
-   digitalWrite(SCK, LOW);
+   I2C_SDA_OUTPUT;
+   I2C_SDA_WRITE(0);
+   I2C_DELAY;
+   I2C_SCK_WRITE(0);
+   I2C_DELAY;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void i2c_reset(void) {
-   digitalWrite(SDA, HIGH);
-   pinMode(SDA,OUTPUT);
-   digitalWrite(SCK, LOW);
+   I2C_SDA_OUTPUT;
+   I2C_SDA_WRITE(1);
+   I2C_SCK_WRITE(0);
    int i;
    for(i=0;i<9;i++) {
-      digitalWrite(SCK,HIGH);
-      digitalWrite(SCK,LOW);
+      I2C_SCK_WRITE(1);
+      I2C_DELAY;
+      I2C_SCK_WRITE(0);
+      I2C_DELAY;
    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 uint8 i2c_send_byte(uint8 b) {
-   Serial.print("send=");
-   Serial.println(b,HEX);
+   //Serial.print("send=");
+   //Serial.println(b,HEX);
    uint8 errors=0;
    uint8 mask;
-   pinMode(SDA,OUTPUT);
+   I2C_SDA_OUTPUT;
    for(mask=0x80;mask;mask>>=1) {
       // present the data bit while the clock is low
-      digitalWrite(SDA,(b&mask)?HIGH:LOW);
+      I2C_SDA_WRITE((b&mask)?1:0);
+      I2C_DELAY;
       // pulse clock line
-      digitalWrite(SCK, HIGH);
-      delay(1);
-      digitalWrite(SCK, LOW);
+      I2C_SCK_WRITE(1);
+      I2C_DELAY;
+      I2C_SCK_WRITE(0);
+      I2C_DELAY;
    }
    // send ACK pulse, read his ACK
-   pinMode(SDA,INPUT);
-   digitalWrite(SDA,HIGH); // turn on pull-up resistor
-   digitalWrite(SCK, HIGH);
+   I2C_SDA_INPUT;
+   I2C_SCK_WRITE(1);
    // receiver should pull SDA low here
-   errors=digitalRead(SDA);
-   digitalWrite(SCK, LOW);
-   pinMode(SDA,OUTPUT);
+   I2C_DELAY;
+   errors=I2C_SDA_READ;
+   I2C_SCK_WRITE(0);
+   I2C_SDA_OUTPUT;
+   I2C_DELAY;
+   if (errors) {
+      //Serial.print("send_byte error=");
+      //Serial.println(errors,HEX);
+   }
    return errors;
 }
 
@@ -194,37 +204,74 @@ uint8 i2c_send_byte(uint8 b) {
 uint8 i2c_recv_byte(uint8 ack) {
    uint8 b=0;
    // release SDA line
-   pinMode(SDA,INPUT);
-   digitalWrite(SDA,HIGH); // turn on pull-up resistor
+   I2C_SDA_INPUT;
    // cycle clock and read bits in
    uint8 mask;
    for(mask=0x80;mask;mask>>=1) {
-      digitalWrite(SCK, HIGH);
-      uint8 inbit = digitalRead(SDA);
+      I2C_SCK_WRITE(1);
+      I2C_DELAY;
+      uint8 inbit = I2C_SDA_READ;
       if (inbit) b=b|mask;
-      digitalWrite(SCK, LOW);
+      I2C_SCK_WRITE(0);
+      I2C_DELAY;
    }
    // send ACK pulse
-   digitalWrite(SDA, ack?LOW:HIGH);
-   pinMode(SDA,OUTPUT);
-   digitalWrite(SCK, HIGH);
-   // TODO - wait 5 usec
-   digitalWrite(SCK, LOW);
+   I2C_SDA_OUTPUT;
+   I2C_SDA_WRITE(ack?0:1);
+   I2C_SCK_WRITE(1);
+   I2C_DELAY;
+   I2C_SCK_WRITE(0);
+   I2C_DELAY;
    // release data line
-   pinMode(SDA,INPUT);
-   digitalWrite(SDA,HIGH); // turn on pull-up resistor
-   Serial.print("recv=");
-   Serial.println(b,HEX);
+   I2C_SDA_INPUT;
+   //Serial.print("recv=");
+   //Serial.println(b,HEX);
    return b;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void i2c_stop(void) {
-   digitalWrite(SDA, LOW);
-   pinMode(SDA,OUTPUT);
-   digitalWrite(SCK, HIGH);
-   digitalWrite(SDA, HIGH);
+   I2C_SDA_OUTPUT;
+   I2C_SDA_WRITE(0);
+   I2C_DELAY;
+   I2C_SCK_WRITE(1);
+   I2C_DELAY;
+   I2C_SDA_WRITE(1);
+   I2C_DELAY;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//   SPECIAL FUNCTIONS FOR TEMP/HUMID SENSOR
+////////////////////////////////////////////////////////////////////////////////
+
+void transmission_start() {
+   I2C_SDA_OUTPUT;
+   I2C_SDA_WRITE(1);
+   delay(2); // ms
+   // It consists of a lowering of the DATA line while
+   // SCK is high, followed by a low pulse on SCK and
+   // raising DATA again while SCK is still high.
+   // clock starts off high
+   I2C_SCK_WRITE(1);
+   I2C_PAUSE;
+   // lower data while clock is high
+   I2C_SDA_WRITE(0);
+   I2C_DELAY;
+   // cycle clock down and up
+   I2C_SCK_WRITE(0);
+   I2C_DELAY;
+   I2C_SCK_WRITE(1);
+   I2C_DELAY;
+   // raise data again while clock is still high
+   I2C_SDA_WRITE(1);
+   I2C_DELAY;
+   // "transmission start" sequence finished
+   // but the manual has this tag-along sequence
+   I2C_SCK_WRITE(0);
+   I2C_DELAY;
+   I2C_SDA_WRITE(0);
+   I2C_DELAY;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
