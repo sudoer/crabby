@@ -6,39 +6,39 @@
 
 typedef struct {
    int digital_output;
-   uint8_t ddr;
-   uint8_t pin;
-   uint8_t port;
+   volatile uint8_t * ddr;
+   volatile uint8_t * pin;
+   volatile uint8_t * port;
    uint8_t mask;
 } pin_map_t;
 
 static pin_map_t pin_map[] {
-   {  0,  DDRD,  PIND,  PORTD,  0x01 },
-   {  1,  DDRD,  PIND,  PORTD,  0x02 },
-   {  2,  DDRD,  PIND,  PORTD,  0x04 },
-   {  3,  DDRD,  PIND,  PORTD,  0x08 },
-   {  4,  DDRD,  PIND,  PORTD,  0x10 },
-   {  5,  DDRD,  PIND,  PORTD,  0x20 },
-   {  6,  DDRD,  PIND,  PORTD,  0x40 },
-   {  7,  DDRD,  PIND,  PORTD,  0x80 },
-   {  8,  DDRB,  PINB,  PORTB,  0x01 },
-   {  9,  DDRB,  PINB,  PORTB,  0x02 },
-   { 10,  DDRB,  PINB,  PORTB,  0x04 },
-   { 11,  DDRB,  PINB,  PORTB,  0x08 },
-   { 12,  DDRB,  PINB,  PORTB,  0x10 },
-   { 13,  DDRB,  PINB,  PORTB,  0x20 },
+   {  0,  &DDRD,  &PIND,  &PORTD,  0x01 },
+   {  1,  &DDRD,  &PIND,  &PORTD,  0x02 },
+   {  2,  &DDRD,  &PIND,  &PORTD,  0x04 },
+   {  3,  &DDRD,  &PIND,  &PORTD,  0x08 },
+   {  4,  &DDRD,  &PIND,  &PORTD,  0x10 },
+   {  5,  &DDRD,  &PIND,  &PORTD,  0x20 },
+   {  6,  &DDRD,  &PIND,  &PORTD,  0x40 },
+   {  7,  &DDRD,  &PIND,  &PORTD,  0x80 },
+   {  8,  &DDRB,  &PINB,  &PORTB,  0x01 },
+   {  9,  &DDRB,  &PINB,  &PORTB,  0x02 },
+   { 10,  &DDRB,  &PINB,  &PORTB,  0x04 },
+   { 11,  &DDRB,  &PINB,  &PORTB,  0x08 },
+   { 12,  &DDRB,  &PINB,  &PORTB,  0x10 },
+   { 13,  &DDRB,  &PINB,  &PORTB,  0x20 },
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void bbi2c::init(int clock_pin, int data_pin) {
-   sck_ddr = (uint8_t * volatile) pin_map[clock_pin].ddr;
-   sck_pin = (uint8_t * volatile) pin_map[clock_pin].pin;
-   sck_port = (uint8_t * volatile) pin_map[clock_pin].port;
+   sck_ddr = pin_map[clock_pin].ddr;
+   sck_pin = pin_map[clock_pin].pin;
+   sck_port = pin_map[clock_pin].port;
    sck_mask = pin_map[clock_pin].mask;
-   sda_ddr = (uint8_t * volatile) pin_map[data_pin].ddr;
-   sda_pin = (uint8_t * volatile) pin_map[data_pin].pin;
-   sda_port = (uint8_t * volatile) pin_map[data_pin].port;
+   sda_ddr = pin_map[data_pin].ddr;
+   sda_pin = pin_map[data_pin].pin;
+   sda_port = pin_map[data_pin].port;
    sda_mask = pin_map[data_pin].mask;
    // SCK is always an output
    sck_is_output();
