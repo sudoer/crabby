@@ -1,6 +1,6 @@
 
 #include <wiring.h>
-#include "i2c.h"
+#include "bbi2c.h"
 
 // BITWISE OPERATIONS
 #define MASKSET(name,mask)  ((name)|=(mask))
@@ -41,12 +41,12 @@ static pin_map_t pin_map[] {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-i2c::i2c(void) {
+bbi2c::bbi2c(void) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void i2c::init(int clock_pin, int data_pin) {
+void bbi2c::init(int clock_pin, int data_pin) {
    sck_ddr = (volatile uint8_t *) pin_map[clock_pin].ddr;
    sck_pin = (volatile uint8_t *) pin_map[clock_pin].pin;
    sck_port = (volatile uint8_t *) pin_map[clock_pin].port;
@@ -65,7 +65,7 @@ void i2c::init(int clock_pin, int data_pin) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void i2c::start(void) {
+void bbi2c::start(void) {
    sda_is_output();
    sda_write(0);
    spacer();
@@ -75,7 +75,7 @@ void i2c::start(void) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void i2c::reset(void) {
+void bbi2c::reset(void) {
    sda_is_output();
    sda_write(1);
    sck_write(0);
@@ -90,7 +90,7 @@ void i2c::reset(void) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint8_t i2c::send_byte(uint8_t b) {
+uint8_t bbi2c::send_byte(uint8_t b) {
    uint8_t errors=0;
    uint8_t mask;
    sda_is_output();
@@ -118,7 +118,7 @@ uint8_t i2c::send_byte(uint8_t b) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint8_t i2c::recv_byte(uint8_t ack) {
+uint8_t bbi2c::recv_byte(uint8_t ack) {
    uint8_t b=0;
    // release SDA line
    sda_is_input();
@@ -146,7 +146,7 @@ uint8_t i2c::recv_byte(uint8_t ack) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void i2c::stop(void) {
+void bbi2c::stop(void) {
    sda_is_output();
    sda_write(0);
    spacer();
@@ -160,13 +160,13 @@ void i2c::stop(void) {
 //   PRIMITIVE PIN OPERATIONS
 ////////////////////////////////////////////////////////////////////////////////
 
-inline void i2c::sck_is_output(void)    { MASKSET(*sck_ddr,sck_mask); }
-inline void i2c::sck_write(uint8_t hl)  { if (hl) MASKSET(*sck_port,sck_mask); else MASKCLR(*sck_port,sck_mask); }
-inline void i2c::sda_is_input(void)     { MASKCLR(*sda_ddr,sda_mask); MASKSET(*sda_port,sda_mask); }
-inline uint8_t i2c::sda_read(void)      { return MASKTST(*sda_pin,sda_mask)?1:0; }
-inline void i2c::sda_is_output(void)    { MASKSET(*sda_ddr,sda_mask); }
-inline void i2c::sda_write(uint8_t hl)  { if (hl) MASKSET(*sda_port,sda_mask); else MASKCLR(*sda_port,sda_mask); }
-void i2c::spacer(void)                  { delayMicroseconds(100); }
+inline void bbi2c::sck_is_output(void)    { MASKSET(*sck_ddr,sck_mask); }
+inline void bbi2c::sck_write(uint8_t hl)  { if (hl) MASKSET(*sck_port,sck_mask); else MASKCLR(*sck_port,sck_mask); }
+inline void bbi2c::sda_is_input(void)     { MASKCLR(*sda_ddr,sda_mask); MASKSET(*sda_port,sda_mask); }
+inline uint8_t bbi2c::sda_read(void)      { return MASKTST(*sda_pin,sda_mask)?1:0; }
+inline void bbi2c::sda_is_output(void)    { MASKSET(*sda_ddr,sda_mask); }
+inline void bbi2c::sda_write(uint8_t hl)  { if (hl) MASKSET(*sda_port,sda_mask); else MASKCLR(*sda_port,sda_mask); }
+void bbi2c::spacer(void)                  { delayMicroseconds(100); }
 
 ////////////////////////////////////////////////////////////////////////////////
 

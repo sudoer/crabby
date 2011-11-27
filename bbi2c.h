@@ -1,12 +1,12 @@
 
-#ifndef I2C_H
-#define I2C_H
+#ifndef BBI2C_H
+#define BBI2C_H
 
 #include <avr/pgmspace.h>
 
-class i2c {
+class bbi2c {
    public:
-      i2c(void);
+      bbi2c(void);
       void init(int clock_pin, int data_pin);
       void start(void);
       void reset(void);

@@ -2,7 +2,7 @@
 #ifndef SHT1X_H
 #define SHT1X_H
 
-#include "i2c.h"
+#include "bbi2c.h"
 
                            //adr cmnd r/w
 #define STATUS_REG_W 0x06  //000 0011 0
@@ -11,7 +11,7 @@
 #define MEASURE_HUMI 0x05  //000 0010 1
 #define RESET        0x1e  //000 1111 0
 
-class sht1x : public i2c {
+class sht1x : public bbi2c {
    public:
       sht1x(void);
       void transmission_start(void);
