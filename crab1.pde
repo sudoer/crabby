@@ -5,10 +5,17 @@
 
 #define LED   13
 
+#define TEMP_LO 7200
+#define TEMP_HI 8000
+#define HUMI_LO 7000
+#define HUMI_HI 8000
+typedef enum { LO, OK, HI } lohi_t;
+char * describe[] = {"LOW","OK","HIGH"};
+
 ////////////////////////////////////////////////////////////////////////////////
 
 //----------------------------------------------------------------------------------
-void calc_sth11(float t_in, float h_in, float & t_out ,float & h_out)
+void calc_sth11(unsigned short t_in, unsigned short h_in, float & t_out ,float & h_out)
 //----------------------------------------------------------------------------------
 // calculates temperature [°C] and humidity [%RH]
 // input : h_in [Ticks] (12 bit)
@@ -67,68 +74,80 @@ void setup() {
 ////////////////////////////////////////////////////////////////////////////////
 
 void loop() {
-   // prepare displays
    char str[21];
-   Serial.print("loop: ");
-   lcd.clear();
 
    digitalWrite(LED, HIGH);
 
    // read temperature
    tempsensor.transmission_start();
-   uint8_t ack=tempsensor.send_byte(MEASURE_TEMP);
-   if (tempsensor.wait_for_ready()) { // about 80 millisecs
-      uint8_t d1=tempsensor.recv_byte(1);
-      uint8_t d2=tempsensor.recv_byte(1);
-      uint8_t d3=tempsensor.recv_byte(0);
-      tempsensor.stop();
+   uint8_t t_ack=tempsensor.send_byte(MEASURE_TEMP);
+   tempsensor.wait_for_ready(); // about 80 millisecs
+   uint8_t d1=tempsensor.recv_byte(1);
+   uint8_t d2=tempsensor.recv_byte(1);
+   uint8_t d3=tempsensor.recv_byte(0);
+   tempsensor.stop();
 
-      // compute
-      unsigned short temp_c=(((unsigned short)d1 << 8) + (unsigned short)d2)-4010;
-      unsigned short temp_f=(temp_c*9/5)+3200;
+   // read humidity
+   tempsensor.transmission_start();
+   uint8_t h_ack=tempsensor.send_byte(MEASURE_HUMI);
+   tempsensor.wait_for_ready(); // about 80 millisecs
+   uint8_t d4=tempsensor.recv_byte(1);
+   uint8_t d5=tempsensor.recv_byte(1);
+   uint8_t d6=tempsensor.recv_byte(0);
+   tempsensor.stop();
 
-      // line 1
-      sprintf(str,"d1=%02X d2=%02X d3=%02X",d1,d2,d3);
-      Serial.print(str);
-      Serial.print(" ");
-      lcd.setCursor(0, 0);
-      lcd.print(str);
+   // compute relative humidity
+   unsigned short t_in=d1*256 + d2;
+   unsigned short h_in=d4*256 + d5;
+   float adj_temp_c;
+   float adj_rel_humid;
+   calc_sth11(t_in,h_in,adj_temp_c,adj_rel_humid);
 
-      // line 2
-      sprintf(str,"T=%d.%02dC=%d.%02dF",temp_c/100,temp_c%100,temp_f/100,temp_f%100);
-      Serial.print(str);
-      Serial.print(" ");
-      lcd.setCursor(0, 1);
-      lcd.print(str);
+   // integer values for printing
+   unsigned short int_tc=(unsigned short)(adj_temp_c * 100.0);
+   unsigned short int_tf=(int_tc*9/5)+3200;
+   unsigned short int_rh=(unsigned short)(adj_rel_humid * 100.0);
 
-      // read humidity
-      tempsensor.transmission_start();
-      uint8_t ack=tempsensor.send_byte(MEASURE_HUMI);
-      if (tempsensor.wait_for_ready()) { // about 80 millisecs
-         uint8_t d4=tempsensor.recv_byte(1);
-         uint8_t d5=tempsensor.recv_byte(1);
-         uint8_t d6=tempsensor.recv_byte(0);
-         tempsensor.stop();
+   // prepare displays
+   Serial.print("loop: ");
+   lcd.clear();
 
-         // compute
-         float t_in=(float)((unsigned short)d1*256 + (unsigned short)d2);
-         float h_in=(float)((unsigned short)d4*256 + (unsigned short)d5);
-         float adj_temp_c;
-         float adj_rel_humid;
-         calc_sth11(t_in,h_in,adj_temp_c,adj_rel_humid);
-         unsigned short int_tc=(unsigned short)(adj_temp_c * 100.0);
-         unsigned short int_rh=(unsigned short)(adj_rel_humid * 100.0);
+   // line 1
+   sprintf(str,"%02X %02X %02X / %02X %02X %02X",d1,d2,d3,d4,d5,d6);
+   Serial.println(str);
+   lcd.setCursor(0, 0);
+   lcd.print(str);
 
-         // line 3
-         sprintf(str,"T=%d.%02dC H=%d.%02d%%",int_tc/100,int_tc%100,int_rh/100,int_rh%100);
-         Serial.print(str);
-         lcd.setCursor(0, 2);
-         lcd.print(str);
+   // line 2
+   sprintf(str,"temp=%d.%02dC/%d.%02dF",int_tc/100,int_tc%100,int_tf/100,int_tf%100);
+   Serial.println(str);
+   lcd.setCursor(0, 1);
+   lcd.print(str);
 
-         // line 4
+   // line 3
+   sprintf(str,"rel.humidity=%d.%02d%%",int_rh/100,int_rh%100);
+   Serial.println(str);
+   lcd.setCursor(0, 2);
+   lcd.print(str);
 
-      }
+   // line 4
+
+   lohi_t temp_ok=LO;
+   if (int_tf >= TEMP_LO) temp_ok=OK;
+   if (int_tf > TEMP_HI) temp_ok=HI;
+   lohi_t humi_ok=LO;
+   if (int_rh >= HUMI_LO) humi_ok=OK;
+   if (int_rh > HUMI_HI) humi_ok=HI;
+   if ((temp_ok==OK)&&(humi_ok==OK)) {
+      sprintf(str,"happy crabby!");
+   } else {
+      sprintf(str,"TEMP %s, RH %s",describe[temp_ok],describe[humi_ok]);
    }
+   Serial.println(str);
+   lcd.setCursor(0, 3);
+   lcd.print(str);
+
+   // end loop
    Serial.println("");
    digitalWrite(LED, LOW);
    delay(2000); // milliseconds
