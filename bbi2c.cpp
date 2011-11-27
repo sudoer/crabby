@@ -2,16 +2,6 @@
 #include <wiring.h>
 #include "bbi2c.h"
 
-// BITWISE OPERATIONS
-#define MASKSET(name,mask)  ((name)|=(mask))
-#define MASKCLR(name,mask)  ((name)&=~(mask))
-#define MASKTST(name,mask)  ((name) & (mask))
-#define MASKNOT(name,mask)  ((name)^=(mask))
-//#define BITSET(name,bitn)  ((name)|=(0x01<<(bitn)))
-//#define BITCLR(name,bitn)  ((name)&=~(0x01<<(bitn)))
-//#define BITTST(name,bitn)  ((name) & (0x01<<(bitn)))
-//#define BITNOT(name,bitn)  ((name)^=(0x01<<(bitn)))
-
 ////////////////////////////////////////////////////////////////////////////////
 
 typedef struct {
@@ -41,19 +31,14 @@ static pin_map_t pin_map[] {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bbi2c::bbi2c(void) {
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 void bbi2c::init(int clock_pin, int data_pin) {
-   sck_ddr = (volatile uint8_t *) pin_map[clock_pin].ddr;
-   sck_pin = (volatile uint8_t *) pin_map[clock_pin].pin;
-   sck_port = (volatile uint8_t *) pin_map[clock_pin].port;
+   sck_ddr = (uint8_t * volatile) pin_map[clock_pin].ddr;
+   sck_pin = (uint8_t * volatile) pin_map[clock_pin].pin;
+   sck_port = (uint8_t * volatile) pin_map[clock_pin].port;
    sck_mask = pin_map[clock_pin].mask;
-   sda_ddr = (volatile uint8_t *) pin_map[data_pin].ddr;
-   sda_pin = (volatile uint8_t *) pin_map[data_pin].pin;
-   sda_port = (volatile uint8_t *) pin_map[data_pin].port;
+   sda_ddr = (uint8_t * volatile) pin_map[data_pin].ddr;
+   sda_pin = (uint8_t * volatile) pin_map[data_pin].pin;
+   sda_port = (uint8_t * volatile) pin_map[data_pin].port;
    sda_mask = pin_map[data_pin].mask;
    // SCK is always an output
    sck_is_output();
@@ -160,13 +145,46 @@ void bbi2c::stop(void) {
 //   PRIMITIVE PIN OPERATIONS
 ////////////////////////////////////////////////////////////////////////////////
 
-inline void bbi2c::sck_is_output(void)    { MASKSET(*sck_ddr,sck_mask); }
-inline void bbi2c::sck_write(uint8_t hl)  { if (hl) MASKSET(*sck_port,sck_mask); else MASKCLR(*sck_port,sck_mask); }
-inline void bbi2c::sda_is_input(void)     { MASKCLR(*sda_ddr,sda_mask); MASKSET(*sda_port,sda_mask); }
-inline uint8_t bbi2c::sda_read(void)      { return MASKTST(*sda_pin,sda_mask)?1:0; }
-inline void bbi2c::sda_is_output(void)    { MASKSET(*sda_ddr,sda_mask); }
-inline void bbi2c::sda_write(uint8_t hl)  { if (hl) MASKSET(*sda_port,sda_mask); else MASKCLR(*sda_port,sda_mask); }
-void bbi2c::spacer(void)                  { delayMicroseconds(100); }
+// BITWISE OPERATIONS
+#define MASKSET(name,mask)  ((name)|=(mask))
+#define MASKCLR(name,mask)  ((name)&=~(mask))
+#define MASKTST(name,mask)  ((name) & (mask))
+#define MASKNOT(name,mask)  ((name)^=(mask))
+//#define BITSET(name,bitn)  ((name)|=(0x01<<(bitn)))
+//#define BITCLR(name,bitn)  ((name)&=~(0x01<<(bitn)))
+//#define BITTST(name,bitn)  ((name) & (0x01<<(bitn)))
+//#define BITNOT(name,bitn)  ((name)^=(0x01<<(bitn)))
+
+inline void bbi2c::sck_is_output(void) {
+   MASKSET(*sck_ddr,sck_mask);
+}
+
+inline void bbi2c::sck_write(uint8_t hl) {
+   if (hl) MASKSET(*sck_port,sck_mask);
+   else MASKCLR(*sck_port,sck_mask);
+}
+
+inline void bbi2c::sda_is_input(void) {
+    MASKCLR(*sda_ddr,sda_mask);
+    MASKSET(*sda_port,sda_mask);
+}
+
+inline uint8_t bbi2c::sda_read(void) {
+   return MASKTST(*sda_pin,sda_mask)?1:0;
+}
+
+inline void bbi2c::sda_is_output(void) {
+   MASKSET(*sda_ddr,sda_mask);
+}
+
+inline void bbi2c::sda_write(uint8_t hl) {
+   if (hl) MASKSET(*sda_port,sda_mask);
+   else MASKCLR(*sda_port,sda_mask);
+}
+
+void bbi2c::spacer(void) {
+   delayMicroseconds(100);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 

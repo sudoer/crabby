@@ -13,7 +13,6 @@
 
 class sht1x : public bbi2c {
    public:
-      sht1x(void);
       void transmission_start(void);
       int wait_for_ready(void);
 };

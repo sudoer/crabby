@@ -6,7 +6,6 @@
 
 class bbi2c {
    public:
-      bbi2c(void);
       void init(int clock_pin, int data_pin);
       void start(void);
       void reset(void);
@@ -14,13 +13,13 @@ class bbi2c {
       uint8_t recv_byte(uint8_t ack);
       void stop(void);
    protected:
-      volatile uint8_t * sck_ddr;
-      volatile uint8_t * sck_pin;
-      volatile uint8_t * sck_port;
+      uint8_t * volatile sck_ddr;
+      uint8_t * volatile sck_pin;
+      uint8_t * volatile sck_port;
       uint8_t sck_mask;
-      volatile uint8_t * sda_ddr;
-      volatile uint8_t * sda_pin;
-      volatile uint8_t * sda_port;
+      uint8_t * volatile sda_ddr;
+      uint8_t * volatile sda_pin;
+      uint8_t * volatile sda_port;
       uint8_t sda_mask;
    protected:
       inline void sck_is_output(void);
