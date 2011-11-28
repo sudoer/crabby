@@ -15,6 +15,7 @@ class sht1x : public bbi2c {
    public:
       void transmission_start(void);
       int wait_for_ready(void);
+      void calc(unsigned short t_in, unsigned short h_in, float & t_out ,float & h_out);
 };
 
 #endif // SHT1X_H

@@ -60,3 +60,45 @@ int sht1x::wait_for_ready(void) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+//----------------------------------------------------------------------------------
+void sht1x::calc(unsigned short t_in, unsigned short h_in, float & t_out ,float & h_out)
+//----------------------------------------------------------------------------------
+// calculates temperature [°C] and humidity [%RH]
+// input : h_in [Ticks] (12 bit)
+//         t_in [Ticks] (14 bit)
+// output: h_out [%RH]
+//         t_out [°C]
+{
+   const float C1=-2.0468;        // for 12 Bit RH
+   const float C2=+0.0367;        // for 12 Bit RH
+   const float C3=-0.0000015955;  // for 12 Bit RH
+   const float T1=+0.01;          // for 12 Bit RH
+   const float T2=+0.00008;       // for 12 Bit RH
+   float rh=h_in;           // rh:      Humidity [Ticks] 12 Bit
+   float t=t_in;            // t:       Temperature [Ticks] 14 Bit
+   float rh_lin;            // rh_lin:  Humidity linear
+   float rh_true;           // rh_true: Temperature compensated humidity
+   float t_C;               // t_C:     Temperature [°C]
+
+   // calc. temperature[°C]from 14 bit temp.ticks @5V
+   t_C=t*0.01 - 40.1;
+
+   // calc. humidity from ticks to [%RH]
+   rh_lin=C3*rh*rh + C2*rh + C1;
+
+   // calc. temperature compensated humidity [%RH]
+   rh_true=(t_C-25)*(T1+T2*rh)+rh_lin;
+
+   // cut if the value is outside of
+   //the physical possible range
+   if(rh_true>100)rh_true=100;
+   if(rh_true<0.1)rh_true=0.1;
+
+   //return temperature [°C]
+   t_out=t_C;
+   //return humidity[%RH]
+   h_out=rh_true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
