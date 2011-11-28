@@ -3,10 +3,16 @@
 #include <avr/pgmspace.h>
 #include "sht1x.h"
 
-#define LED   13
-#define LIGHT  0
-#define BACKLIGHT 6
+// hardware pins
+#define LED        13  // digital
+#define LIGHTMETER  0  // analog
+#define BACKLIGHT   6  // PWM
 
+// timing
+#define LOOP_MS 3000
+#define FADE_MS 10
+
+// temperature/humidity ranges (x100)
 #define TEMP_LO 7200
 #define TEMP_HI 8000
 #define HUMI_LO 7000
@@ -81,10 +87,11 @@ void setup() {
 void loop() {
    char str[21];
 
-   int lightlevel=analogRead(LIGHT);
-   lightlevel=map(lightlevel,1023,0,0,255);  // adjust to 0-255 range
-   lightlevel=constrain(lightlevel,1,255);  // bound within 0-255
-   analogWrite(BACKLIGHT,lightlevel);
+   static int current_light_level=0;
+   analogWrite(BACKLIGHT,current_light_level);
+
+   int target_light_level=map(analogRead(LIGHTMETER),1023,0,0,255);  // adjust to 0-255 range
+   target_light_level=constrain(target_light_level,1,255);  // bound within 0-255
 
    // starting to read sensors
    digitalWrite(LED, HIGH);
@@ -127,7 +134,7 @@ void loop() {
    lcd.clear();
 
    // line 1
-   sprintf(str,"%02X,%02X%02X%02X,%02X%02X%02X",lightlevel,d1,d2,d3,d4,d5,d6);
+   sprintf(str,"%02X,%02X%02X%02X,%02X%02X%02X",target_light_level,d1,d2,d3,d4,d5,d6);
    Serial.println(str);
    lcd.setCursor(0, 0);
    lcd.print(str);
@@ -165,7 +172,14 @@ void loop() {
 
    // end loop
    Serial.println("");
-   delay(2000); // milliseconds
+
+   // fade backlight
+   for (int i=0; i<LOOP_MS; i+=FADE_MS) {
+      if (current_light_level<target_light_level) current_light_level++;
+      if (current_light_level>target_light_level) current_light_level--;
+      analogWrite(BACKLIGHT,current_light_level);
+      delay(FADE_MS); // ms
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
