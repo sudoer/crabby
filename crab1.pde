@@ -4,6 +4,8 @@
 #include "sht1x.h"
 
 #define LED   13
+#define LIGHT  0
+#define BACKLIGHT 6
 
 #define TEMP_LO 7200
 #define TEMP_HI 8000
@@ -71,12 +73,18 @@ void setup() {
    lcd.noCursor();
    // set up GPIOs
    pinMode(LED,OUTPUT);
+   pinMode(BACKLIGHT,OUTPUT);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void loop() {
    char str[21];
+
+   int lightlevel=analogRead(LIGHT);
+   lightlevel=map(lightlevel,1023,0,0,255);  // adjust to 0-255 range
+   lightlevel=constrain(lightlevel,1,255);  // bound within 0-255
+   analogWrite(BACKLIGHT,lightlevel);
 
    // starting to read sensors
    digitalWrite(LED, HIGH);
@@ -119,7 +127,7 @@ void loop() {
    lcd.clear();
 
    // line 1
-   sprintf(str,"%02X %02X %02X / %02X %02X %02X",d1,d2,d3,d4,d5,d6);
+   sprintf(str,"%02X,%02X%02X%02X,%02X%02X%02X",lightlevel,d1,d2,d3,d4,d5,d6);
    Serial.println(str);
    lcd.setCursor(0, 0);
    lcd.print(str);
