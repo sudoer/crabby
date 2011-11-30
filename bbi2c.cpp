@@ -183,7 +183,7 @@ inline void bbi2c::sda_write(uint8_t hl) {
 }
 
 void bbi2c::spacer(void) {
-   delayMicroseconds(100);
+   delayMicroseconds(1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
