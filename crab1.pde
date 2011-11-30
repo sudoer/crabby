@@ -1,15 +1,19 @@
 
 #include <LiquidCrystal.h>
 #include <avr/pgmspace.h>
+#include <SD.h>
 #include "sht1x.h"
 
 // hardware pins
-#define LED        13  // digital
+#define LED        -1  // digital
 #define LIGHTMETER  0  // analog
-#define BACKLIGHT   6  // PWM
+#define BACKLIGHT  -1  // PWM
+#define SDCARD_CS  10  // digital
+
+#define FILENAME  "crabby.txt"
 
 // timing
-#define LOOP_MS 3000
+#define LOOP_MS 10000
 #define FADE_MS 10
 
 // temperature/humidity ranges (x100)
@@ -23,7 +27,8 @@ char * describe[] = {"LOW","OK","HIGH"};
 ////////////////////////////////////////////////////////////////////////////////
 
 static sht1x tempsensor;
-static LiquidCrystal lcd(7,8,9,10,11,12);
+static LiquidCrystal lcd(4,5,6,7,8,9);
+static unsigned long loopnum=0;
 
 void setup() {
    // set up serial port
@@ -36,8 +41,19 @@ void setup() {
    lcd.begin(20, 4);
    lcd.noCursor();
    // set up GPIOs
-   pinMode(LED,OUTPUT);
-   pinMode(BACKLIGHT,OUTPUT);
+   #if (LED >= 0)
+      pinMode(LED,OUTPUT);
+   #endif
+   #if (BACKLIGHT >= 0)
+      pinMode(BACKLIGHT,OUTPUT);
+   #endif
+   // SD card
+   pinMode(SDCARD_CS, OUTPUT);
+   if (!SD.begin(SDCARD_CS)) {
+      Serial.println("Card failed, or not present");
+   } else {
+      Serial.println("card initialized.");
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -45,14 +61,20 @@ void setup() {
 void loop() {
    char str[21];
 
+   loopnum++;
+
    static int current_light_level=0;
-   analogWrite(BACKLIGHT,current_light_level);
+   #if (BACKLIGHT >= 0)
+      analogWrite(BACKLIGHT,current_light_level);
+   #endif
 
    int target_light_level=map(analogRead(LIGHTMETER),1023,0,0,255);  // adjust to 0-255 range
    target_light_level=constrain(target_light_level,1,255);  // bound within 0-255
 
    // starting to read sensors
-   digitalWrite(LED, HIGH);
+   #if (LED >= 0)
+      digitalWrite(LED, HIGH);
+   #endif
 
    // read temperature
    tempsensor.transmission_start();
@@ -73,7 +95,9 @@ void loop() {
    tempsensor.stop();
 
    // done reading sensors
-   digitalWrite(LED, LOW);
+   #if (LED >= 0)
+      digitalWrite(LED, LOW);
+   #endif
 
    // compute relative humidity
    unsigned short t_in=d1*256 + d2;
@@ -88,11 +112,12 @@ void loop() {
    unsigned short int_rh=(unsigned short)(adj_rel_humid * 100.0);
 
    // prepare displays
-   Serial.print("loop: ");
+   Serial.println("loop: ");
    lcd.clear();
 
    // line 1
-   sprintf(str,"%02X,%02X%02X%02X,%02X%02X%02X",target_light_level,d1,d2,d3,d4,d5,d6);
+   ///sprintf(str,"%02X,%02X%02X%02X,%02X%02X%02X",target_light_level,d1,d2,d3,d4,d5,d6);
+   sprintf(str,"%s %d",__TIME__,loopnum);
    Serial.println(str);
    lcd.setCursor(0, 0);
    lcd.print(str);
@@ -131,11 +156,27 @@ void loop() {
    // end loop
    Serial.println("");
 
+   // if the file is available, write to it:
+   File dataFile = SD.open(FILENAME, FILE_WRITE);
+   if (dataFile) {
+      sprintf(str,"%ld,",loopnum);
+      dataFile.print(str);
+      sprintf(str,"%d.%02d,",int_tf/100,int_tf%100);
+      dataFile.print(str);
+      sprintf(str,"%d.%02d%",int_rh/100,int_rh%100);
+      dataFile.println(str);
+      dataFile.close();
+   } else {
+      Serial.println("error opening " FILENAME);
+   }
+
    // fade backlight
    for (int i=0; i<LOOP_MS; i+=FADE_MS) {
       if (current_light_level<target_light_level) current_light_level++;
       if (current_light_level>target_light_level) current_light_level--;
-      analogWrite(BACKLIGHT,current_light_level);
+      #if (BACKLIGHT >= 0)
+         analogWrite(BACKLIGHT,current_light_level);
+      #endif
       delay(FADE_MS); // ms
    }
 }
