@@ -27,6 +27,14 @@ static pin_map_t pin_map[] {
    { 11,  &DDRB,  &PINB,  &PORTB,  0x08 },
    { 12,  &DDRB,  &PINB,  &PORTB,  0x10 },
    { 13,  &DDRB,  &PINB,  &PORTB,  0x20 },
+   { 14,  &DDRC,  &PINC,  &PORTC,  0x01 }, // A0
+   { 15,  &DDRC,  &PINC,  &PORTC,  0x02 }, // A1
+   { 16,  &DDRC,  &PINC,  &PORTC,  0x04 }, // A2
+   { 17,  &DDRC,  &PINC,  &PORTC,  0x08 }, // A3
+   { 18,  &DDRC,  &PINC,  &PORTC,  0x10 }, // A4
+   { 19,  &DDRC,  &PINC,  &PORTC,  0x20 }, // A5
+// { 20,  &DDRC,  &PINC,  &PORTC,  0x40 }, // A6
+// { 21,  &DDRC,  &PINC,  &PORTC,  0x80 }, // A7
 };
 
 ////////////////////////////////////////////////////////////////////////////////

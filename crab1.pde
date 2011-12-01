@@ -3,13 +3,23 @@
 #include <avr/pgmspace.h>
 #include <SD.h>
 #include "sht1x.h"
+#include <Wire.h>
+#include "RTClib.h"
 
 // hardware pins
-#define LED        -1  // digital
-#define LIGHTMETER  0  // analog
-#define BACKLIGHT  -1  // PWM
-#define SDCARD_CS  10  // digital
-
+//#define LED        13  // digital
+//#define BACKLIGHT   4  // PWM
+//#define EXTRA       0
+//#define LIGHTMETER  0  // analog
+#define TEMP_SDA     8
+#define TEMP_SCL     9
+#define SDCARD_CS   10
+#define LCD_RS       5
+#define LCD_EN       4
+#define LCD_DB4      A0
+#define LCD_DB5      A1
+#define LCD_DB6      A2
+#define LCD_DB7      A3
 #define FILENAME  "crabby.txt"
 
 // timing
@@ -27,8 +37,11 @@ char * describe[] = {"LOW","OK","HIGH"};
 ////////////////////////////////////////////////////////////////////////////////
 
 static sht1x tempsensor;
-static LiquidCrystal lcd(4,5,6,7,8,9);
+static LiquidCrystal lcd(LCD_RS,LCD_EN,LCD_DB4,LCD_DB5,LCD_DB6,LCD_DB7);
 static unsigned long loopnum=0;
+static RTC_DS1307 RTC;
+
+////////////////////////////////////////////////////////////////////////////////
 
 void setup() {
    // set up serial port
@@ -36,16 +49,25 @@ void setup() {
    Serial.println(__DATE__);
    Serial.println(__TIME__);
    // set up temperature/humidity sensor
-   tempsensor.init(2,3);
+   tempsensor.init(TEMP_SCL,TEMP_SDA);
    // set up the LCD's number of columns and rows:
-   lcd.begin(20, 4);
+   pinMode(LCD_RS,OUTPUT);
+   pinMode(LCD_EN,OUTPUT);
+   pinMode(LCD_DB4,OUTPUT);
+   pinMode(LCD_DB5,OUTPUT);
+   pinMode(LCD_DB6,OUTPUT);
+   pinMode(LCD_DB7,OUTPUT);
+   lcd.begin(20,4);
    lcd.noCursor();
    // set up GPIOs
-   #if (LED >= 0)
+   #ifdef LED
       pinMode(LED,OUTPUT);
    #endif
-   #if (BACKLIGHT >= 0)
+   #ifdef BACKLIGHT
       pinMode(BACKLIGHT,OUTPUT);
+   #endif
+   #ifdef EXTRA
+      pinMode(EXTRA,OUTPUT);
    #endif
    // SD card
    pinMode(SDCARD_CS, OUTPUT);
@@ -54,26 +76,41 @@ void setup() {
    } else {
       Serial.println("card initialized.");
    }
+   // RT clock
+   Wire.begin();
+   RTC.begin();
+
+   if (! RTC.isrunning()) {
+      Serial.println("RTC is NOT running!");
+      // following line sets the RTC to the date & time this sketch was compiled
+      // RTC.adjust(DateTime(__DATE__, __TIME__));
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void loop() {
    char str[21];
+   int target_light_level=0;
 
    loopnum++;
 
    static int current_light_level=0;
-   #if (BACKLIGHT >= 0)
+   #ifdef BACKLIGHT
       analogWrite(BACKLIGHT,current_light_level);
    #endif
 
-   int target_light_level=map(analogRead(LIGHTMETER),1023,0,0,255);  // adjust to 0-255 range
-   target_light_level=constrain(target_light_level,1,255);  // bound within 0-255
+   #ifdef LIGHTMETER
+      target_light_level=map(analogRead(LIGHTMETER),1023,0,0,255);  // adjust to 0-255 range
+      target_light_level=constrain(target_light_level,1,255);  // bound within 0-255
+   #endif
 
    // starting to read sensors
-   #if (LED >= 0)
+   #ifdef LED
       digitalWrite(LED, HIGH);
+   #endif
+   #ifdef EXTRA
+      digitalWrite(EXTRA, HIGH);
    #endif
 
    // read temperature
@@ -95,8 +132,11 @@ void loop() {
    tempsensor.stop();
 
    // done reading sensors
-   #if (LED >= 0)
+   #ifdef LED
       digitalWrite(LED, LOW);
+   #endif
+   #ifdef EXTRA
+      digitalWrite(EXTRA, LOW);
    #endif
 
    // compute relative humidity
@@ -111,31 +151,6 @@ void loop() {
    unsigned short int_tf=(int_tc*9/5)+3200;
    unsigned short int_rh=(unsigned short)(adj_rel_humid * 100.0);
 
-   // prepare displays
-   Serial.println("loop: ");
-   lcd.clear();
-
-   // line 1
-   ///sprintf(str,"%02X,%02X%02X%02X,%02X%02X%02X",target_light_level,d1,d2,d3,d4,d5,d6);
-   sprintf(str,"%s %d",__TIME__,loopnum);
-   Serial.println(str);
-   lcd.setCursor(0, 0);
-   lcd.print(str);
-
-   // line 2
-   sprintf(str,"temp=%d.%02dC/%d.%02dF",int_tc/100,int_tc%100,int_tf/100,int_tf%100);
-   Serial.println(str);
-   lcd.setCursor(0, 1);
-   lcd.print(str);
-
-   // line 3
-   sprintf(str,"rel.humidity=%d.%02d%%",int_rh/100,int_rh%100);
-   Serial.println(str);
-   lcd.setCursor(0, 2);
-   lcd.print(str);
-
-   // line 4
-
    // find ranges: LO-OK-HI
    lohi_t temp_ok=LO;
    if (int_tf >= TEMP_LO) temp_ok=OK;
@@ -144,10 +159,36 @@ void loop() {
    if (int_rh >= HUMI_LO) humi_ok=OK;
    if (int_rh > HUMI_HI) humi_ok=HI;
 
+   // prepare displays
+   Serial.println("loop: ");
+   lcd.clear();
+
+   // line 1
+   ///sprintf(str,"%02X,%02X%02X%02X,%02X%02X%02X",target_light_level,d1,d2,d3,d4,d5,d6);
+   ///sprintf(str,"%s %d",__TIME__,loopnum);
+   DateTime now = RTC.now();
+   sprintf(str,"%02d %d:%02d:%02d #%d",now.day(),now.hour(),now.minute(),now.second(),loopnum);
+   Serial.println(str);
+   lcd.setCursor(0, 0);
+   lcd.print(str);
+
+   // line 2
+   sprintf(str,"T=%d.%02dC/%d.%02dF %s",int_tc/100,int_tc%100,int_tf/100,int_tf%100,describe[temp_ok]);
+   Serial.println(str);
+   lcd.setCursor(0, 1);
+   lcd.print(str);
+
+   // line 3
+   sprintf(str,"RH=%d.%02d%% %s",int_rh/100,int_rh%100,describe[humi_ok]);
+   Serial.println(str);
+   lcd.setCursor(0, 2);
+   lcd.print(str);
+
+   // line 4
    if ((temp_ok==OK)&&(humi_ok==OK)) {
       sprintf(str,"happy crabby!");
    } else {
-      sprintf(str,"TEMP %s, RH %s",describe[temp_ok],describe[humi_ok]);
+      sprintf(str,":-P");
    }
    Serial.println(str);
    lcd.setCursor(0, 3);
@@ -174,7 +215,7 @@ void loop() {
    for (int i=0; i<LOOP_MS; i+=FADE_MS) {
       if (current_light_level<target_light_level) current_light_level++;
       if (current_light_level>target_light_level) current_light_level--;
-      #if (BACKLIGHT >= 0)
+      #ifdef BACKLIGHT
          analogWrite(BACKLIGHT,current_light_level);
       #endif
       delay(FADE_MS); // ms
