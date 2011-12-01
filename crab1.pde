@@ -43,13 +43,16 @@ static RTC_DS1307 RTC;
 ////////////////////////////////////////////////////////////////////////////////
 
 void setup() {
+
    // set up serial port
    Serial.begin(57600);
    Serial.println(__DATE__);
    Serial.println(__TIME__);
+
    // set up temperature/humidity sensor
    tempsensor.init(TEMP_SCL,TEMP_SDA);
-   // set up the LCD's number of columns and rows:
+
+   // LCD
    pinMode(LCD_RS,OUTPUT);
    pinMode(LCD_EN,OUTPUT);
    pinMode(LCD_DB4,OUTPUT);
@@ -58,6 +61,12 @@ void setup() {
    pinMode(LCD_DB7,OUTPUT);
    lcd.begin(20,4);
    lcd.noCursor();
+   lcd.clear();
+   lcd.setCursor(0, 0);
+   lcd.print(__DATE__);
+   lcd.setCursor(0, 1);
+   lcd.print(__TIME__);
+
    // set up GPIOs
    #ifdef LED
       pinMode(LED,OUTPUT);
@@ -65,6 +74,7 @@ void setup() {
    #ifdef BACKLIGHT
       pinMode(BACKLIGHT,OUTPUT);
    #endif
+
    // SD card
    pinMode(SDCARD_CS, OUTPUT);
    if (!SD.begin(SDCARD_CS)) {
@@ -72,15 +82,18 @@ void setup() {
    } else {
       Serial.println("card initialized.");
    }
+
    // RT clock
    Wire.begin();
    RTC.begin();
-
    if (! RTC.isrunning()) {
       Serial.println("RTC is NOT running!");
       // following line sets the RTC to the date & time this sketch was compiled
       // RTC.adjust(DateTime(__DATE__, __TIME__));
    }
+
+   // take a deep breath
+   delay(1000);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
