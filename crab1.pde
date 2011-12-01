@@ -9,7 +9,6 @@
 // hardware pins
 //#define LED        13  // digital
 //#define BACKLIGHT   4  // PWM
-//#define EXTRA       0
 //#define LIGHTMETER  0  // analog
 #define TEMP_SDA     8
 #define TEMP_SCL     9
@@ -27,9 +26,9 @@
 #define FADE_MS 10
 
 // temperature/humidity ranges (x100)
-#define TEMP_LO 7200
+#define TEMP_LO 7000
 #define TEMP_HI 8000
-#define HUMI_LO 7000
+#define HUMI_LO 6500
 #define HUMI_HI 8000
 typedef enum { LO, OK, HI } lohi_t;
 char * describe[] = {"LOW","OK","HIGH"};
@@ -66,9 +65,6 @@ void setup() {
    #ifdef BACKLIGHT
       pinMode(BACKLIGHT,OUTPUT);
    #endif
-   #ifdef EXTRA
-      pinMode(EXTRA,OUTPUT);
-   #endif
    // SD card
    pinMode(SDCARD_CS, OUTPUT);
    if (!SD.begin(SDCARD_CS)) {
@@ -91,8 +87,9 @@ void setup() {
 
 void loop() {
    char str[21];
-   int target_light_level=0;
+   int target_light_level=128; // default
 
+   DateTime now = RTC.now();
    loopnum++;
 
    static int current_light_level=0;
@@ -108,9 +105,6 @@ void loop() {
    // starting to read sensors
    #ifdef LED
       digitalWrite(LED, HIGH);
-   #endif
-   #ifdef EXTRA
-      digitalWrite(EXTRA, HIGH);
    #endif
 
    // read temperature
@@ -135,9 +129,6 @@ void loop() {
    #ifdef LED
       digitalWrite(LED, LOW);
    #endif
-   #ifdef EXTRA
-      digitalWrite(EXTRA, LOW);
-   #endif
 
    // compute relative humidity
    unsigned short t_in=d1*256 + d2;
@@ -160,26 +151,28 @@ void loop() {
    if (int_rh > HUMI_HI) humi_ok=HI;
 
    // prepare displays
-   Serial.println("loop: ");
+   Serial.println();
    lcd.clear();
 
    // line 1
    ///sprintf(str,"%02X,%02X%02X%02X,%02X%02X%02X",target_light_level,d1,d2,d3,d4,d5,d6);
    ///sprintf(str,"%s %d",__TIME__,loopnum);
-   DateTime now = RTC.now();
    sprintf(str,"%02d %d:%02d:%02d #%d",now.day(),now.hour(),now.minute(),now.second(),loopnum);
+   Serial.print("1>>");
    Serial.println(str);
    lcd.setCursor(0, 0);
    lcd.print(str);
 
    // line 2
    sprintf(str,"T=%d.%02dC/%d.%02dF %s",int_tc/100,int_tc%100,int_tf/100,int_tf%100,describe[temp_ok]);
+   Serial.print("2>>");
    Serial.println(str);
    lcd.setCursor(0, 1);
    lcd.print(str);
 
    // line 3
-   sprintf(str,"RH=%d.%02d%% %s",int_rh/100,int_rh%100,describe[humi_ok]);
+   sprintf(str,"humidity=%d.%02d%% %s",int_rh/100,int_rh%100,describe[humi_ok]);
+   Serial.print("3>>");
    Serial.println(str);
    lcd.setCursor(0, 2);
    lcd.print(str);
@@ -188,19 +181,21 @@ void loop() {
    if ((temp_ok==OK)&&(humi_ok==OK)) {
       sprintf(str,"happy crabby!");
    } else {
-      sprintf(str,":-P");
+      sprintf(str,"");
    }
+   Serial.print("4>>");
    Serial.println(str);
    lcd.setCursor(0, 3);
    lcd.print(str);
-
-   // end loop
-   Serial.println("");
 
    // if the file is available, write to it:
    File dataFile = SD.open(FILENAME, FILE_WRITE);
    if (dataFile) {
       sprintf(str,"%ld,",loopnum);
+      dataFile.print(str);
+      sprintf(str,"%ld,",now.unixtime());
+      dataFile.print(str);
+      sprintf(str,"%02d,%d:%02d:%02d,",now.day(),now.hour(),now.minute(),now.second());
       dataFile.print(str);
       sprintf(str,"%d.%02d,",int_tf/100,int_tf%100);
       dataFile.print(str);
@@ -210,6 +205,9 @@ void loop() {
    } else {
       Serial.println("error opening " FILENAME);
    }
+
+   // end loop
+   Serial.println();
 
    // fade backlight
    for (int i=0; i<LOOP_MS; i+=FADE_MS) {
