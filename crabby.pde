@@ -170,21 +170,25 @@ void loop() {
    // line 1
    ///sprintf(str,"%02X,%02X%02X%02X,%02X%02X%02X",target_light_level,d1,d2,d3,d4,d5,d6);
    ///sprintf(str,"%s %d",__TIME__,loopnum);
-   sprintf(str,"%02d %d:%02d:%02d #%d",now.day(),now.hour(),now.minute(),now.second(),loopnum);
+   char weekdays[]="SMTWHFS";
+   sprintf(str,"%c%02d %d:%02d:%02d #%d",
+      weekdays[now.dayOfWeek()],now.day(),
+      now.hour(),now.minute(),now.second(),
+      loopnum);
    Serial.print("1>>");
    Serial.println(str);
    lcd.setCursor(0, 0);
    lcd.print(str);
 
    // line 2
-   sprintf(str,"T=%d.%02dC/%d.%02dF %s",int_tc/100,int_tc%100,int_tf/100,int_tf%100,describe[temp_ok]);
+   sprintf(str,"T= %d.%01dC %d.%01dF %s",int_tc/100,int_tc%100/10,int_tf/100,int_tf%100/10,describe[temp_ok]);
    Serial.print("2>>");
    Serial.println(str);
    lcd.setCursor(0, 1);
    lcd.print(str);
 
    // line 3
-   sprintf(str,"humidity=%d.%02d%% %s",int_rh/100,int_rh%100,describe[humi_ok]);
+   sprintf(str,"humidity=%d.%01d%% %s",int_rh/100,int_rh%100/10,describe[humi_ok]);
    Serial.print("3>>");
    Serial.println(str);
    lcd.setCursor(0, 2);
