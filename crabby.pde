@@ -13,7 +13,6 @@
 #define TEMP_SDA     8
 #define TEMP_SCL     9
 #define SDCARD_CS   10
-#define FILENAME  "crabby.txt"
 #define LCD_I2CADDR  0
 //#define LCD_RS       A2
 //#define LCD_EN       A3
@@ -21,6 +20,8 @@
 //#define LCD_DB5      5
 //#define LCD_DB6      6
 //#define LCD_DB7      7
+#define FILENAME_DEFAULT "crabby.txt"
+#define FILENAME_LEN  13 // 8.3\0
 
 // timing
 #define LOOP_MS 10000
@@ -44,6 +45,7 @@ static sht1x tempsensor;
 #endif
 static unsigned long loopnum=0;
 static RTC_DS1307 RTC;
+static char filename[FILENAME_LEN];
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -96,8 +98,14 @@ void setup() {
    // RT clock
    Wire.begin();
    RTC.begin();
-   if (! RTC.isrunning()) {
+   if (RTC.isrunning()) {
+      Serial.println("RTC is running!");
+      DateTime now = RTC.now();
+      sprintf(filename,"%02d%02d%02d%02d.dat",
+         now.month(),now.day(),now.hour(),now.minute());
+   } else {
       Serial.println("RTC is NOT running!");
+      strcpy(filename,FILENAME_DEFAULT);
       // following line sets the RTC to the date & time this sketch was compiled
       // RTC.adjust(DateTime(__DATE__, __TIME__));
    }
@@ -216,7 +224,7 @@ void loop() {
    lcd.print(str);
 
    // if the file is available, write to it:
-   File dataFile = SD.open(FILENAME, FILE_WRITE);
+   File dataFile = SD.open(filename, FILE_WRITE);
    if (dataFile) {
       sprintf(str,"%ld,",loopnum);
       dataFile.print(str);
@@ -230,7 +238,8 @@ void loop() {
       dataFile.println(str);
       dataFile.close();
    } else {
-      Serial.println("error opening " FILENAME);
+      Serial.print("error opening ");
+      Serial.println(filename);
    }
 
    // end loop
