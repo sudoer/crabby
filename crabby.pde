@@ -13,13 +13,14 @@
 #define TEMP_SDA     8
 #define TEMP_SCL     9
 #define SDCARD_CS   10
-#define LCD_RS       5
-#define LCD_EN       4
-#define LCD_DB4      A0
-#define LCD_DB5      A1
-#define LCD_DB6      A2
-#define LCD_DB7      A3
 #define FILENAME  "crabby.txt"
+#define LCD_I2CADDR  0
+//#define LCD_RS       A2
+//#define LCD_EN       A3
+//#define LCD_DB4      4
+//#define LCD_DB5      5
+//#define LCD_DB6      6
+//#define LCD_DB7      7
 
 // timing
 #define LOOP_MS 10000
@@ -36,7 +37,11 @@ char * describe[] = {"LOW","OK","HIGH"};
 ////////////////////////////////////////////////////////////////////////////////
 
 static sht1x tempsensor;
-static LiquidCrystal lcd(LCD_RS,LCD_EN,LCD_DB4,LCD_DB5,LCD_DB6,LCD_DB7);
+#ifdef LCD_I2CADDR
+   static LiquidCrystal lcd(LCD_I2CADDR);
+#else
+   static LiquidCrystal lcd(LCD_RS,LCD_EN,LCD_DB4,LCD_DB5,LCD_DB6,LCD_DB7);
+#endif
 static unsigned long loopnum=0;
 static RTC_DS1307 RTC;
 
@@ -53,12 +58,16 @@ void setup() {
    tempsensor.init(TEMP_SCL,TEMP_SDA);
 
    // LCD
-   pinMode(LCD_RS,OUTPUT);
-   pinMode(LCD_EN,OUTPUT);
-   pinMode(LCD_DB4,OUTPUT);
-   pinMode(LCD_DB5,OUTPUT);
-   pinMode(LCD_DB6,OUTPUT);
-   pinMode(LCD_DB7,OUTPUT);
+   #ifdef LCD_I2CADDR
+      // no special setup
+   #else
+      pinMode(LCD_RS,OUTPUT);
+      pinMode(LCD_EN,OUTPUT);
+      pinMode(LCD_DB4,OUTPUT);
+      pinMode(LCD_DB5,OUTPUT);
+      pinMode(LCD_DB6,OUTPUT);
+      pinMode(LCD_DB7,OUTPUT);
+   #endif
    lcd.begin(20,4);
    lcd.noCursor();
    lcd.clear();
@@ -66,6 +75,7 @@ void setup() {
    lcd.print(__DATE__);
    lcd.setCursor(0, 1);
    lcd.print(__TIME__);
+   lcd.setBacklight(1);
 
    // set up GPIOs
    #ifdef LED
