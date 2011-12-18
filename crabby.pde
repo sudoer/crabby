@@ -24,7 +24,7 @@
 #define FILENAME_LEN  13 // 8.3\0
 
 // timing
-#define LOOP_MS 10000
+#define LOOP_MS 30000
 #define FADE_MS 10
 
 // temperature/humidity ranges (x100)
@@ -43,7 +43,7 @@ static sht1x tempsensor;
 #else
    static LiquidCrystal lcd(LCD_RS,LCD_EN,LCD_DB4,LCD_DB5,LCD_DB6,LCD_DB7);
 #endif
-static unsigned long loopnum=0;
+static long loopnum=0;
 static RTC_DS1307 RTC;
 static char filename[FILENAME_LEN];
 
@@ -189,7 +189,7 @@ void loop() {
    ///sprintf(str,"%02X,%02X%02X%02X,%02X%02X%02X",target_light_level,d1,d2,d3,d4,d5,d6);
    ///sprintf(str,"%s %d",__TIME__,loopnum);
    char weekdays[]="SMTWHFS";
-   sprintf(str,"%c%02d %d:%02d:%02d #%d",
+   sprintf(str,"%c%02d %d:%02d:%02d #%ld",
       weekdays[now.dayOfWeek()],now.day(),
       now.hour(),now.minute(),now.second(),
       loopnum);
