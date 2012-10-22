@@ -1,5 +1,5 @@
 
-#include <wiring.h>
+#include <Arduino.h>
 #include <avr/pgmspace.h>
 #include "sht1x.h"
 

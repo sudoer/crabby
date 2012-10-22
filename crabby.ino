@@ -10,8 +10,8 @@
 //#define LED        13  // digital
 //#define BACKLIGHT   4  // PWM
 //#define LIGHTMETER  0  // analog
-#define TEMP_SDA     8
-#define TEMP_SCL     9
+#define TEMP_SDA     9
+#define TEMP_SCL     8
 #define SDCARD_CS   10
 #define LCD_I2CADDR  0
 //#define LCD_RS       A2
@@ -100,15 +100,16 @@ void setup() {
    RTC.begin();
    if (RTC.isrunning()) {
       Serial.println("RTC is running!");
-      DateTime now = RTC.now();
-      sprintf(filename,"%02d%02d%02d%02d.dat",
-         now.month(),now.day(),now.hour(),now.minute());
    } else {
       Serial.println("RTC is NOT running!");
       strcpy(filename,FILENAME_DEFAULT);
       // following line sets the RTC to the date & time this sketch was compiled
       // RTC.adjust(DateTime(__DATE__, __TIME__));
+      RTC.adjust(DateTime(__DATE__,__TIME__));
    }
+   DateTime now = RTC.now();
+   sprintf(filename,"%02d%02d%02d%02d.dat",
+      now.month(),now.day(),now.hour(),now.minute());
 
    // take a deep breath
    delay(1000);
